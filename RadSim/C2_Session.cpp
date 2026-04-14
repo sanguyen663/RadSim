@@ -63,7 +63,7 @@ void C2_Session::OnReceive(int nErrorCode)
 	if (nBytes > 0)
 	{
 		CString strMsg(buffer);
-		if (strMsg == _T("[I_AM_ALIVE]"))
+		if (strMsg.Find(_T("[I_AM_ALIVE]")) != -1)
 		{
 			// Cập nhật lại thời gian sống
 			m_dwLastHeartbeat = GetTickCount();
