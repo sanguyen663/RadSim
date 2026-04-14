@@ -301,6 +301,7 @@ void CRadSimDlg::GenerateMockData()
 	for (int i = 1; i <= 15; i++)
 	{
 		AsterixTrack track;
+		memset(&track, 0, sizeof(AsterixTrack));
 		track.nTrackNumber = i;
 
 		// Random tọa độ bay quanh khu vực Hà Nội (Lat: 21.0, Lon: 105.8)
