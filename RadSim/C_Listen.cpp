@@ -54,8 +54,16 @@ void CC_Listen::OnReceive(int nErrorCode)
 					strcpy_s(replyBuf, CT2A(strReply));
 					SendTo(replyBuf, strlen(replyBuf), nPort, strIP);
 
-					// TODO (Sau này): Cập nhật thông tin lên bảng danh sách (DlgSess) 
-					// và ghi log Hex (DlgMonitor) ở đây.
+					// --- THÊM MỚI ĐỂ HIỂN THỊ LOG LÊN RADSIM ---
+					CString strLog;
+					strLog.Format(_T("[SYSTEM] Có Trung tâm %s:%d xin kết nối. Đã cấp cổng %d"), strIP, nPort, newPort);
+					pMainDlg->AddToMonitor(strLog);
+
+					// Nếu bạn đã viết hàm UpdateSessList() trong DlgSess của RadSim thì gọi ở đây:
+					if (pMainDlg->m_dlgSess.GetSafeHwnd() != NULL)
+					{
+						pMainDlg->m_dlgSess.UpdateSessList(); 
+					}
 				}
 				else
 				{

@@ -12,7 +12,7 @@ public:
 	CDlgSess(CWnd* pParent = NULL);   // standard constructor
 	virtual ~CDlgSess();
 	virtual BOOL OnInitDialog();
-
+	void UpdateSessList();
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_SESS_DIALOG };

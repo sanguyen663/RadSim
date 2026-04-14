@@ -129,3 +129,29 @@ void CDlgSess::OnBnClickedBtnKick()
 	// 4. Xóa dòng đó khỏi bảng hiển thị
 	m_listSess.DeleteItem(nIndex);
 }
+
+void CDlgSess::UpdateSessList()
+{
+	CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
+	if (pMainDlg == NULL) return;
+
+	m_listSess.DeleteAllItems();
+
+	// Duyệt qua tất cả các phiên hiện có
+	for (size_t i = 0; i < pMainDlg->m_listSessions.size(); i++)
+	{
+		C2_Session* pSess = pMainDlg->m_listSessions[i];
+		CString strIndex, strIP, strCenterPort, strMyPort;
+
+		strIndex.Format(_T("%d"), i + 1);
+		strIP = pSess->m_strCenterIP;
+		strCenterPort.Format(_T("%d"), pSess->m_nCenterPort);
+		strMyPort.Format(_T("%d"), pSess->m_nMyPort);
+
+		int nItem = m_listSess.InsertItem((int)i, strIndex);
+		m_listSess.SetItemText(nItem, 1, strIP);          // Cột IP C2Center
+		m_listSess.SetItemText(nItem, 2, strMyPort);      // Cột Cổng RadSim Mở (10001..)
+		m_listSess.SetItemText(nItem, 3, strCenterPort);  // Cột Cổng C2Center Gửi
+		m_listSess.SetItemText(nItem, 4, _T("Đang phát"));// Trạng thái
+	}
+}
