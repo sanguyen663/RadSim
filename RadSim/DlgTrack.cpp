@@ -72,7 +72,7 @@ BOOL CDlgTrack::OnInitDialog()
 			strHdgSpd.Format(_T("%.0f - %.0f"), track.fHeading, track.fSpeed);
 			strAlti.Format(_T("%.0f"), track.fAltitude);
 			strType.Format(_T("%d"), track.nType);
-			strIden = CA2T(track.szIden); // Chuyển từ char[] sang CString
+			strIden = CA2T(track.szIden); 
 			strStatus = _T("New");
 
 			// Thêm vào bảng (List Control)
@@ -131,7 +131,7 @@ void CDlgTrack::OnBnClickedBtnEdit()
 			newTrack.cStatus = 'N'; // New
 
 			pMainDlg->m_listRealTracks.push_back(newTrack);
-		} // <--- BẠN ĐÃ BỊ THIẾU DẤU NGOẶC NÀY Ở CODE CŨ
+		} 
 	}
 }
 
