@@ -291,11 +291,13 @@ void CRadSimDlg::AddToMonitor(CString strLog)
 
 void CRadSimDlg::GenerateMockData()
 {
-	// Xóa sạch dữ liệu cũ (nếu có)
 	m_listRealTracks.clear();
 
-	// Khởi tạo hạt giống random để mỗi lần chạy tọa độ sẽ khác nhau
+	// Khởi tạo hạt giống random
 	srand((unsigned)time(NULL));
+
+	// Danh sách các tiền tố chuyến bay phổ biến
+	const char* callsignPrefixes[] = { "VN", "VJ", "QH", "BL", "VU" };
 
 	// Vòng lặp tạo 15 mục tiêu
 	for (int i = 1; i <= 15; i++)
@@ -304,21 +306,31 @@ void CRadSimDlg::GenerateMockData()
 		memset(&track, 0, sizeof(AsterixTrack));
 		track.nTrackNumber = i;
 
-		// Random tọa độ bay quanh khu vực Hà Nội (Lat: 21.0, Lon: 105.8)
-		track.fLat = 21.0f + (rand() % 100) / 1000.0f;
-		track.fLon = 105.8f + (rand() % 100) / 1000.0f;
+		// 1. Random Tọa độ bay quanh khu vực Hà Nội (Mở rộng phạm vi rộng hơn)
+		// rand() % 2000 / 1000.0f - 1.0f tạo ra giá trị từ -1.0 đến +1.0 độ
+		track.fLat = 21.0f + ((rand() % 2000) / 1000.0f - 1.0f);
+		track.fLon = 105.8f + ((rand() % 2000) / 1000.0f - 1.0f);
 
-		// Random vận tốc (150 - 250) và hướng bay (0 - 359 độ)
-		track.fSpeed = 150.0f + (rand() % 100);
+		// 2. Random Vận tốc (100 - 300 m/s) và Hướng bay ban đầu (0 - 359 độ)
+		track.fSpeed = 100.0f + (rand() % 201);
 		track.fHeading = (float)(rand() % 360);
 
-		track.fAltitude = 3000.0f + (rand() % 2000);
-		track.nType = 1;
+		// 3. Random Độ cao (1000 - 10000 mét)
+		track.fAltitude = 1000.0f + (rand() % 9001);
 
-		// Đặt tên tự động: VN01, VN02...
-		CString strIden;
-		strIden.Format(_T("VN%02d"), i);
-		strcpy_s(track.szIden, sizeof(track.szIden), CT2A(strIden));
+		// 4. Random Kiểu loại (1 - 15 theo chuẩn Asterix I062/080)
+		// VD: 3: Tiêm kích, 4: Trực thăng, 11: AWACS, 14: Dân sự, 15: UAV...
+		track.nType = 1 + (rand() % 15);
+
+		// 5. Random Ký hiệu (szIden): Bốc ngẫu nhiên 1 tiền tố hãng bay + 3 số ngẫu nhiên
+		int prefixIdx = rand() % 5;
+		int flightNum = 100 + (rand() % 900); // Từ 100 đến 999
+		CStringA strIdenA; // Dùng CStringA để format chuỗi ASCII (an toàn cho Asterix)
+		strIdenA.Format("%s%d", callsignPrefixes[prefixIdx], flightNum);
+		strcpy_s(track.szIden, sizeof(track.szIden), strIdenA);
+
+		// 6. Random Chất lượng quỹ đạo (0 - 10, ta random từ 5-10 cho thực tế)
+		track.nQuality = 5 + (rand() % 6);
 
 		track.cStatus = 'N'; // Trạng thái New
 
@@ -326,7 +338,7 @@ void CRadSimDlg::GenerateMockData()
 		m_listRealTracks.push_back(track);
 	}
 
-	// Cập nhật luôn con số 15 lên màn hình chính
+	// Cập nhật lên giao diện
 	CString strInfo;
 	strInfo.Format(_T("Số mục tiêu: %d | Số kết nối đang hoạt động: %d"),
 		(int)m_listRealTracks.size(), (int)m_listSessions.size());

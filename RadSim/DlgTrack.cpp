@@ -66,13 +66,14 @@ BOOL CDlgTrack::OnInitDialog()
 			AsterixTrack track = pMainDlg->m_listRealTracks[i];
 
 			// Format dữ liệu thành chuỗi
-			CString strTN, strPos, strHdgSpd, strAlti, strType, strIden, strStatus;
+			CString strTN, strPos, strHdgSpd, strAlti, strType, strIden, strStatus, strTQ;
 			strTN.Format(_T("%02d"), track.nTrackNumber);
 			strPos.Format(_T("%.4f - %.4f"), track.fLat, track.fLon);
 			strHdgSpd.Format(_T("%.0f - %.0f"), track.fHeading, track.fSpeed);
 			strAlti.Format(_T("%.0f"), track.fAltitude);
 			strType.Format(_T("%d"), track.nType);
 			strIden = CA2T(track.szIden); 
+			strTQ.Format(_T("%d"), track.nQuality);
 			strStatus = _T("New");
 
 			// Thêm vào bảng (List Control)
@@ -82,6 +83,7 @@ BOOL CDlgTrack::OnInitDialog()
 			m_ListTrack.SetItemText(nItem, 3, strAlti);
 			m_ListTrack.SetItemText(nItem, 4, strType);
 			m_ListTrack.SetItemText(nItem, 5, strIden);
+			m_ListTrack.SetItemText(nItem, 6, strTQ);
 			m_ListTrack.SetItemText(nItem, 7, strStatus);
 		}
 	}
@@ -224,21 +226,55 @@ void CDlgTrack::OnTimer(UINT_PTR nIDEvent)
 			{
 				AsterixTrack& track = pMainDlg->m_listRealTracks[i];
 
-				// Đổi Hướng sang Radian và tính tọa độ mới
+				// --- THÊM NHIỄU NGẪU NHIÊN KHI ĐANG BAY ---
+
+				// 30% cơ hội máy bay lượn vòng đổi hướng (Lệch -5 đến +5 độ)
+				if (rand() % 10 < 3) {
+					track.fHeading += ((rand() % 11) - 5.0f);
+					if (track.fHeading >= 360.0f) track.fHeading -= 360.0f;
+					if (track.fHeading < 0.0f) track.fHeading += 360.0f;
+				}
+
+				// 20% cơ hội tăng/giảm tốc độ (Thay đổi -5 đến +5 m/s)
+				if (rand() % 10 < 2) {
+					track.fSpeed += ((rand() % 11) - 5.0f);
+					// Giới hạn tốc độ không để máy bay lùi hoặc bay quá nhanh
+					if (track.fSpeed < 50.0f) track.fSpeed = 50.0f;
+					if (track.fSpeed > 400.0f) track.fSpeed = 400.0f;
+				}
+
+				// 20% cơ hội thay đổi độ cao (Thay đổi -50 đến +50 mét)
+				if (rand() % 10 < 2) {
+					track.fAltitude += ((rand() % 101) - 50.0f);
+					if (track.fAltitude < 0.0f) track.fAltitude = 0.0f;
+				}
+
+				// Đôi khi nhiễu sóng làm Chất lượng quỹ đạo (nQuality) tụt nhẹ
+				if (rand() % 100 < 5) { // 5% cơ hội
+					track.nQuality = (rand() % 11); // Random lại từ 0 - 10
+				}
+
+				// --- TÍNH TOÁN TỌA ĐỘ MỚI ---
 				float rad = track.fHeading * (3.14159f / 180.0f);
 				track.fLat += (track.fSpeed * cos(rad)) * 0.00005f;
 				track.fLon += (track.fSpeed * sin(rad)) * 0.00005f;
 				track.cStatus = 'U'; // Đánh dấu là Update
 
-									 // Cập nhật lại giao diện List Control
-				CString strNewPos;
+				// --- CẬP NHẬT LẠI GIAO DIỆN BẢNG ---
+				CString strNewPos, strNewHdgSpd, strNewAlti, strNewTQ;
 				strNewPos.Format(_T("%.4f - %.4f"), track.fLat, track.fLon);
+				strNewHdgSpd.Format(_T("%.0f - %.0f"), track.fHeading, track.fSpeed);
+				strNewAlti.Format(_T("%.0f"), track.fAltitude);
+				strNewTQ.Format(_T("%d"), track.nQuality);
 
 				for (int row = 0; row < m_ListTrack.GetItemCount(); row++)
 				{
 					if (_ttoi(m_ListTrack.GetItemText(row, 0)) == track.nTrackNumber)
 					{
 						m_ListTrack.SetItemText(row, 1, strNewPos);
+						m_ListTrack.SetItemText(row, 2, strNewHdgSpd); // Update cả Hướng-Tốc độ
+						m_ListTrack.SetItemText(row, 3, strNewAlti);   // Update cả Độ cao
+						m_ListTrack.SetItemText(row, 6, strNewTQ);
 						m_ListTrack.SetItemText(row, 7, _T("Upd"));
 						break;
 					}

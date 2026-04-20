@@ -23,97 +23,106 @@ BOOL C2_Session::InitSession(UINT myPort, CString centerIP, UINT centerPort)
 
 void C2_Session::SendTrackData(AsterixTrack trackData)
 {
-	// TẠO GÓI TIN THEO CHUẨN ASTERIX CAT 062 VỚI 8 TRƯỜNG
-	BYTE buffer[31]; // Tăng lên 31 bytes vì I062/080 giờ chiếm 2 bytes
-	memset(buffer, 0, 31);
+	BYTE buffer[64];
+	memset(buffer, 0, 64);
 
-	// 1. Khối Header của ASTERIX
+	// 1. Khối Header của ASTERIX 
 	buffer[0] = 62; // CAT = 062
 	buffer[1] = 0;
-	buffer[2] = 31; // LEN: 31 bytes
 
-					// 2. Khối FSPEC (3 bytes)
-	buffer[3] = 0x9B;
-	buffer[4] = 0x0F;
-	buffer[5] = 0x10;
+	// 2. Khối FSPEC (KÉO DÀI THÀNH 4 BYTES)
+	buffer[3] = 0x99; // FRN 1, 4, 5, FX=1
+	buffer[4] = 0x1F; // FRN 11, 12, 13, 14, FX=1
+	buffer[5] = 0x11; // FRN 18, FX=1 (Mở byte số 4)
+	buffer[6] = 0x28; // FRN 24, FX=0 (Đóng FSPEC)
 
-	int offset = 6;
+	int offset = 7;
 
-	// 3. FRN 1: I062/010 (Data Source Identifier)
-	buffer[offset++] = 0x94; // SAC: Việt Nam
-	buffer[offset++] = 0x01; // SIC
+	// 3. FRN 1: I062/010 (Data Source)
+	buffer[offset++] = 0x94;
+	buffer[offset++] = 0x01;
 
-	// 4. FRN 4: I062/070 (Time of Track Information)
+	// 4. FRN 4: I062/070 (Time)
 	DWORD dwTime = (GetTickCount() / 1000) * 128;
 	buffer[offset++] = (dwTime >> 16) & 0xFF;
 	buffer[offset++] = (dwTime >> 8) & 0xFF;
 	buffer[offset++] = dwTime & 0xFF;
 
-	// 5. FRN 5: I062/105 (Position in WGS-84) 
+	// 5. FRN 5: I062/105 (Position)
 	double scalePos = 33554432.0 / 180.0;
 	int32_t lat32 = (int32_t)(trackData.fLat * scalePos);
 	int32_t lon32 = (int32_t)(trackData.fLon * scalePos);
+	buffer[offset++] = (lat32 >> 24) & 0xFF; buffer[offset++] = (lat32 >> 16) & 0xFF;
+	buffer[offset++] = (lat32 >> 8) & 0xFF;  buffer[offset++] = lat32 & 0xFF;
+	buffer[offset++] = (lon32 >> 24) & 0xFF; buffer[offset++] = (lon32 >> 16) & 0xFF;
+	buffer[offset++] = (lon32 >> 8) & 0xFF;  buffer[offset++] = lon32 & 0xFF;
 
-	buffer[offset++] = (lat32 >> 24) & 0xFF;
-	buffer[offset++] = (lat32 >> 16) & 0xFF;
-	buffer[offset++] = (lat32 >> 8) & 0xFF;
-	buffer[offset++] = lat32 & 0xFF;
-
-	buffer[offset++] = (lon32 >> 24) & 0xFF;
-	buffer[offset++] = (lon32 >> 16) & 0xFF;
-	buffer[offset++] = (lon32 >> 8) & 0xFF;
-	buffer[offset++] = lon32 & 0xFF;
-
-	// 6. FRN 7: I062/185 (Calculated Track Velocity)
-	int16_t vx = (int16_t)(trackData.fSpeed * 4.0f);
-	int16_t vy = 0x0000;
-	buffer[offset++] = (vx >> 8) & 0xFF;
-	buffer[offset++] = vx & 0xFF;
-	buffer[offset++] = (vy >> 8) & 0xFF;
-	buffer[offset++] = vy & 0xFF;
+	// 6. FRN 11: I062/180 (Velocity Polar)
+	uint16_t speed = (uint16_t)(trackData.fSpeed * 10.0f);
+	uint16_t heading = (uint16_t)(trackData.fHeading * (65536.0f / 360.0f));
+	buffer[offset++] = (speed >> 8) & 0xFF;   buffer[offset++] = speed & 0xFF;
+	buffer[offset++] = (heading >> 8) & 0xFF; buffer[offset++] = heading & 0xFF;
 
 	// 7. FRN 12: I062/040 (Track Number) 
 	buffer[offset++] = (trackData.nTrackNumber >> 8) & 0xFF;
 	buffer[offset++] = trackData.nTrackNumber & 0xFF;
 
-	// 8. FRN 13: I062/080 (Track Status) - ĐÃ TÍCH HỢP cStatus
-	buffer[offset++] = 0x01; // Octet 1: Mặc định tất cả bằng 0, bật bit cuối (FX=1) để mở Octet 2
+	// 8. FRN 13: I062/080 (Track Status + Type)
+	buffer[offset++] = 0x01;
+	BYTE octet2 = 0x01;
+	if (trackData.cStatus == 'N') octet2 |= 0x20;
+	else if (trackData.cStatus == 'D') octet2 |= 0x40;
+	buffer[offset++] = octet2;
+	buffer[offset++] = 0x01;
+	BYTE octet4 = 0x00;
+	octet4 |= ((trackData.nType & 0x0F) << 1);
+	buffer[offset++] = octet4;
 
-	if (trackData.cStatus == 'N') {
-		buffer[offset++] = 0x20; // Octet 2: Bật bit TSB (Track Service Begin) - 0010 0000
-	}
-	else if (trackData.cStatus == 'D') {
-		buffer[offset++] = 0x40; // Octet 2: Bật bit TSE (Track Service End) - 0100 0000
-	}
-	else {
-		buffer[offset++] = 0x00; // Octet 2: Quỹ đạo cập nhật bình thường ('U')
-	}
+	// 9. FRN 14: I062/290 (Update Ages)
+	buffer[offset++] = 0x80;
+	buffer[offset++] = 0x04;
 
-	// 9. FRN 14: I062/290 (System Track Update Ages)
-	buffer[offset++] = 0x80; // Map: Chọn Subfield 1 (Track Age)
-	buffer[offset++] = 0x04; // Track Age: 1 giây (LSB = 1/4s)
-
-							 // 10. FRN 18: I062/130 (Calculated Geometric Altitude)
+	// 10. FRN 18: I062/130 (Altitude)
 	int16_t alt = (int16_t)(trackData.fAltitude / 6.25f);
 	buffer[offset++] = (alt >> 8) & 0xFF;
 	buffer[offset++] = alt & 0xFF;
 
-	// --- GỬI GÓI TIN QUA UDP ---
-	int nBytesSent = SendTo(buffer, 31, m_nCenterPort, m_strCenterIP);
+	// 11. FRN 24: I062/245 (Target Identification) --- THÊM MỚI Ở ĐÂY
+	char callsign[8] = { ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ' };
+	for (int i = 0; i < 8 && trackData.szIden[i] != '\0'; i++) {
+		callsign[i] = trackData.szIden[i];
+	}
 
-	if (nBytesSent != SOCKET_ERROR)
-	{
-		CString strHex = _T("");
-		CString strTemp;
-		for (int i = 0; i < 36; i++)
-		{
+	// Mã hóa 8 ký tự ASCII sang dạng 6-bit (tổng cộng 48 bits = 6 bytes)
+	uint64_t encoded = 0;
+	for (int i = 0; i < 8; i++) {
+		encoded = (encoded << 6) | (callsign[i] & 0x3F);
+	}
+
+	buffer[offset++] = 0x00; // STI = 0 (Callsign default)
+	buffer[offset++] = (encoded >> 40) & 0xFF;
+	buffer[offset++] = (encoded >> 32) & 0xFF;
+	buffer[offset++] = (encoded >> 24) & 0xFF;
+	buffer[offset++] = (encoded >> 16) & 0xFF;
+	buffer[offset++] = (encoded >> 8) & 0xFF;
+	buffer[offset++] = encoded & 0xFF;
+
+	// 12. FRN 26: I062/501 (Track Quality)
+	buffer[offset++] = trackData.nQuality & 0xFF;
+
+	// Cập nhật lại tổng chiều dài
+	buffer[2] = offset;
+
+	// --- GỬI GÓI TIN ---
+	int nBytesSent = SendTo(buffer, offset, m_nCenterPort, m_strCenterIP);
+	if (nBytesSent != SOCKET_ERROR) {
+		CString strHex = _T(""), strTemp;
+		for (int i = 0; i < offset; i++) {
 			strTemp.Format(_T("%02X "), buffer[i]);
 			strHex += strTemp;
 		}
-
 		CString strLog;
-		strLog.Format(_T("[TX ASTERIX to %s] %s"), m_strCenterIP, strHex);
-
+		strLog.Format(_T("[TX to %s] %s"), m_strCenterIP, strHex);
 		CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
 		if (pMainDlg != NULL) pMainDlg->AddToMonitor(strLog);
 	}
