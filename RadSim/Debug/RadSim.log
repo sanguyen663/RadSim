@@ -1,14 +1,3 @@
-﻿  DlgSess.cpp
-  Generating Code...
-  Compiling...
-  RadSimDlg.cpp
-  RadSim.cpp
-  DlgTrackInfo.cpp
-  DlgTrack.cpp
-  DlgMonitor.cpp
-  C_Listen.cpp
-  Generating Code...
-  Skipping... (no relevant changes detected)
-  C2_Session.cpp
+﻿  RadSimDlg.cpp
   RadSim.vcxproj -> C:\Users\HP\documents\visual studio 2015\Projects\RadSim\Debug\RadSim.exe
   RadSim.vcxproj -> C:\Users\HP\documents\visual studio 2015\Projects\RadSim\Debug\RadSim.pdb (Partial PDB)

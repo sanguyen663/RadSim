@@ -141,57 +141,27 @@ void CDlgTrack::OnBnClickedBtnEdit()
 void CDlgTrack::OnBnClickedBtnDelete()
 {
 	// TODO: Add your control notification handler code here
-	// 1. Lấy vị trí dòng đang được chọn trên List Control
 	int nIndex = m_ListTrack.GetSelectionMark();
+	if (nIndex == -1) return;
 
-	// Kiểm tra nếu người dùng chưa chọn dòng nào
-	if (nIndex == -1)
-	{
-		MessageBox(_T("Vui lòng chọn một quỹ đạo trong danh sách để xóa!"), _T("Thông báo"), MB_ICONWARNING);
-		return;
-	}
+	if (IDYES != MessageBox(_T("Bạn có chắc chắn muốn xóa quỹ đạo này không?"), _T("Xác nhận"), MB_YESNO)) return;
 
-	// 2. Xác nhận lại việc xóa (để tránh bấm nhầm)
-	if (IDYES != MessageBox(_T("Bạn có chắc chắn muốn xóa quỹ đạo này không?"), _T("Xác nhận"), MB_YESNO | MB_ICONQUESTION))
-	{
-		return;
-	}
-
-	// 3. Lấy số hiệu quỹ đạo (TN) từ cột đầu tiên để tìm trong dữ liệu gốc
 	CString strTN = m_ListTrack.GetItemText(nIndex, 0);
-	int nTN = _ttoi(strTN); // Chuyển từ chuỗi sang số nguyên
+	int nTN = _ttoi(strTN);
 
-	// 4. Xóa dữ liệu trong mảng thực tế của Main Dialog
 	CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
 	if (pMainDlg != NULL)
 	{
-		for (auto it = pMainDlg->m_listRealTracks.begin(); it != pMainDlg->m_listRealTracks.end(); ++it)
+		for (auto& track : pMainDlg->m_listRealTracks)
 		{
-			if (it->nTrackNumber == nTN)
+			if (track.nTrackNumber == nTN)
 			{
-				// (Tùy chọn chuyên nghiệp) Gửi một bản tin cuối cùng báo trạng thái 'D' (Delete)
-				// để phía Trung tâm xóa mục tiêu này ngay lập tức thay vì đợi timeout
-				it->cStatus = 'D';
-				for (size_t i = 0; i < pMainDlg->m_listSessions.size(); i++)
-				{
-					if (pMainDlg->m_listSessions[i] != NULL)
-						pMainDlg->m_listSessions[i]->SendTrackData(*it);
-				}
-
-				// Xóa khỏi vector dữ liệu
-				pMainDlg->m_listRealTracks.erase(it);
+				// Chỉ cần đánh dấu là 'D', Timer sẽ tự động gửi đi báo cáo xóa rồi mới hủy khỏi bộ nhớ
+				track.cStatus = 'D';
 				break;
 			}
 		}
-
-		// Cập nhật lại số lượng mục tiêu hiển thị ở màn hình chính
-		CString strInfo;
-		strInfo.Format(_T("Số mục tiêu: %d | Số kết nối đang hoạt động: %d"),
-			(int)pMainDlg->m_listRealTracks.size(), (int)pMainDlg->m_listSessions.size());
-		pMainDlg->SetDlgItemText(IDC_STATIC_INFO2, strInfo);
 	}
-
-	// 5. Cuối cùng, xóa dòng hiển thị trên giao diện bảng
 	m_ListTrack.DeleteItem(nIndex);
 }
 
@@ -205,7 +175,7 @@ void CDlgTrack::OnBnClickedBtnAuto()
 	if (m_bIsAutoRunning)
 	{
 		SetDlgItemText(IDC_BTN_AUTO, _T("Dừng chạy"));
-		SetTimer(2, 1000, NULL); // Bật Timer số 2, quét mỗi 1 giây
+		SetTimer(2, 10000, NULL);
 	}
 	else
 	{
@@ -221,6 +191,7 @@ void CDlgTrack::OnTimer(UINT_PTR nIDEvent)
 		CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
 		if (pMainDlg != NULL)
 		{
+			m_ListTrack.SetRedraw(FALSE);
 			// Lặp qua tất cả mục tiêu thật đang có trong hệ thống
 			for (size_t i = 0; i < pMainDlg->m_listRealTracks.size(); i++)
 			{
@@ -280,6 +251,8 @@ void CDlgTrack::OnTimer(UINT_PTR nIDEvent)
 					}
 				}
 			}
+			m_ListTrack.SetRedraw(TRUE);
+			m_ListTrack.Invalidate();
 		}
 	}
 	CDialogEx::OnTimer(nIDEvent);

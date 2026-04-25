@@ -266,15 +266,46 @@ void CRadSimDlg::OnTimer(UINT_PTR nIDEvent)
 		// Nếu chưa có Trung tâm nào kết nối thì không làm gì cả
 		if (m_listSessions.empty()) return;
 
-		// Lặp qua tất cả các Trung tâm đang kết nối và "bắn" dữ liệu cho họ
-		for (size_t i = 0; i < m_listSessions.size(); i++)
+		for (auto it = m_listRealTracks.begin(); it != m_listRealTracks.end(); )
 		{
-			if (m_listSessions[i] != NULL)
+			bool bShouldSend = false;
+			DWORD dwLastSent = m_mapLastSentTime[it->nTrackNumber];
+
+			// Gửi ngay lập tức nếu là mục tiêu Mới (N) hoặc Bị xóa (D)
+			if (it->cStatus == 'N' || it->cStatus == 'D') {
+				bShouldSend = true;
+			}
+			// Hoặc nếu đã trôi qua >= 15 giây kể từ lần gửi cuối
+			else if (dwCurrentTime - dwLastSent >= 15000) {
+				bShouldSend = true;
+			}
+
+			if (bShouldSend)
 			{
-				for (size_t t = 0; t < m_listRealTracks.size(); t++)
+				for (size_t i = 0; i < m_listSessions.size(); i++)
 				{
-					m_listSessions[i]->SendTrackData(m_listRealTracks[t]);
+					if (m_listSessions[i] != NULL)
+						m_listSessions[i]->SendTrackData(*it);
 				}
+				// Cập nhật lại thời gian gửi
+				m_mapLastSentTime[it->nTrackNumber] = dwCurrentTime;
+
+				// Chuyển trạng thái: Gửi 'N' xong thì thành 'U'
+				if (it->cStatus == 'N') {
+					it->cStatus = 'U';
+					++it; // Đi tiếp tới track sau
+				}
+				// Gửi 'D' xong thì xóa hoàn toàn khỏi hệ thống
+				else if (it->cStatus == 'D') {
+					m_mapLastSentTime.erase(it->nTrackNumber);
+					it = m_listRealTracks.erase(it); // Xóa và nhận iterator mới
+				}
+				else {
+					++it;
+				}
+			}
+			else {
+				++it;
 			}
 		}
 	}
@@ -292,15 +323,12 @@ void CRadSimDlg::AddToMonitor(CString strLog)
 void CRadSimDlg::GenerateMockData()
 {
 	m_listRealTracks.clear();
-
-	// Khởi tạo hạt giống random
+	m_mapLastSentTime.clear();
 	srand((unsigned)time(NULL));
-
-	// Danh sách các tiền tố chuyến bay phổ biến
 	const char* callsignPrefixes[] = { "VN", "VJ", "QH", "BL", "VU" };
 
-	// Vòng lặp tạo 15 mục tiêu
-	for (int i = 1; i <= 15; i++)
+	// Vòng lặp tạo 300 mục tiêu
+	for (int i = 1; i <= 75; i++)
 	{
 		AsterixTrack track;
 		memset(&track, 0, sizeof(AsterixTrack));
@@ -334,8 +362,9 @@ void CRadSimDlg::GenerateMockData()
 
 		track.cStatus = 'N'; // Trạng thái New
 
-							 // Đẩy vào mảng thực tế của hệ thống
-		m_listRealTracks.push_back(track);
+		// Đẩy vào mảng thực tế của hệ thống
+		m_listRealTracks.push_back(track);\
+		m_mapLastSentTime[i] = GetTickCount() - (rand() % 15000);
 	}
 
 	// Cập nhật lên giao diện

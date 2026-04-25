@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include "afxcmn.h"
 
-
 // CDlgTrack dialog
 
 class CDlgTrack : public CDialogEx

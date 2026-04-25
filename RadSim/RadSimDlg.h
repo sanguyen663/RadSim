@@ -4,6 +4,7 @@
 
 #pragma once
 #include <vector>
+#include <map>
 #include "C_Listen.h"
 #include "C2_Session.h"
 #include "DlgTrack.h"
@@ -16,21 +17,14 @@ class CRadSimDlg : public CDialogEx
 {
 // Construction
 public:
-	CRadSimDlg(CWnd* pParent = NULL);	// standard constructor
-	// 1. Biến quản lý cổng lắng nghe 10000
+	CRadSimDlg(CWnd* pParent = NULL);	
 	CC_Listen m_ListenSocket;
-
-	// 2. Mảng lưu trữ danh sách các phiên kết nối (Trung tâm)
 	std::vector<C2_Session*> m_listSessions;
-
-	// 3. Biến đếm để tạo cổng mới (Bắt đầu từ 1, cổng sẽ là 10001, 10002...)
 	int m_nSessionCounter = 1;
-
 	afx_msg void OnDestroy();
-
-	// nhận log từ Socket
 	void AddToMonitor(CString strLog);
 	std::vector<AsterixTrack> m_listRealTracks;
+	std::map<int, DWORD> m_mapLastSentTime;
 	void GenerateMockData();
 	CDlgMonitor m_dlgMonitor;
 	CDlgTrack   m_dlgTrack;
