@@ -31,6 +31,7 @@ void CDlgSess::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CDlgSess, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_KICK, &CDlgSess::OnBnClickedBtnKick)
+	ON_BN_CLICKED(IDC_BTN_SERVER, &CDlgSess::OnBnClickedBtnServer)
 END_MESSAGE_MAP()
 
 
@@ -46,24 +47,6 @@ BOOL CDlgSess::OnInitDialog()
 	m_listSess.InsertColumn(3, _T("Init Time"), LVCFMT_CENTER, 80);
 	m_listSess.InsertColumn(4, _T("Phiên"), LVCFMT_CENTER, 70);
 	m_listSess.InsertColumn(5, _T("Trạng thái"), LVCFMT_CENTER, 90);
-
-	// 3. Đổ dữ liệu mẫu
-	// --- Dòng 1: Trung tâm 1 ---
-	int nItem1 = m_listSess.InsertItem(0, _T("TT_01"));
-	m_listSess.SetItemText(nItem1, 1, _T("192.168.1.10"));
-	m_listSess.SetItemText(nItem1, 2, _T("10001"));
-	m_listSess.SetItemText(nItem1, 3, _T("08:00:15"));
-	m_listSess.SetItemText(nItem1, 4, _T("10001"));	
-	m_listSess.SetItemText(nItem1, 5, _T("Đang truyền"));
-
-	// --- Dòng 2: Trung tâm 2 ---
-	int nItem2 = m_listSess.InsertItem(1, _T("TT_02"));
-	m_listSess.SetItemText(nItem2, 1, _T("192.168.1.15"));
-	m_listSess.SetItemText(nItem2, 2, _T("10002"));
-	m_listSess.SetItemText(nItem2, 3, _T("08:05:22"));
-	m_listSess.SetItemText(nItem2, 4, _T("10002"));
-	m_listSess.SetItemText(nItem2, 5, _T("Đang chờ"));
-
 	return TRUE;
 }
 
@@ -153,5 +136,60 @@ void CDlgSess::UpdateSessList()
 		m_listSess.SetItemText(nItem, 2, strMyPort);      // Cột Cổng RadSim Mở (10001..)
 		m_listSess.SetItemText(nItem, 3, strCenterPort);  // Cột Cổng C2Center Gửi
 		m_listSess.SetItemText(nItem, 4, _T("Đang phát"));// Trạng thái
+	}
+}
+
+void CDlgSess::OnBnClickedBtnServer()
+{
+	// TODO: Add your control notification handler code here
+	CString strIP, strPort;
+	// Giả sử ID của 2 ô nhập liệu bạn đặt là IDC_EDIT_SERVER_IP và IDC_EDIT_SERVER_PORT
+	GetDlgItemText(IDC_EDIT_IP, strIP);
+	GetDlgItemText(IDC_EDIT_PORT, strPort);
+
+	if (strPort.IsEmpty())
+	{
+		MessageBox(_T("Vui lòng nhập cổng (Port) để lắng nghe!"), _T("Lỗi"), MB_ICONWARNING);
+		return;
+	}
+
+	UINT nPort = _ttoi(strPort);
+
+	// 1. LẤY CON TRỎ TỚI MÀN HÌNH CHÍNH (RadSimDlg)
+	CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
+	if (pMainDlg == NULL) return;
+
+	// 2. TỪ NAY TRỞ ĐI, PHẢI THÊM "pMainDlg->" TRƯỚC m_ListenSocket
+	// Đóng socket nếu nó đang mở
+	pMainDlg->m_ListenSocket.Close();
+
+	BOOL bCreated = FALSE;
+
+	// Tạo socket
+	if (strIP.IsEmpty())
+	{
+		bCreated = pMainDlg->m_ListenSocket.Create(nPort, SOCK_DGRAM);
+	}
+	else
+	{
+		bCreated = pMainDlg->m_ListenSocket.Create(nPort, SOCK_DGRAM, FD_READ | FD_WRITE | FD_OOB | FD_ACCEPT | FD_CONNECT | FD_CLOSE, strIP);
+	}
+
+	// Xử lý kết quả
+	if (bCreated)
+	{
+		CString strMsg;
+		if (strIP.IsEmpty()) strMsg.Format(_T("Đã mở Server lắng nghe trên mọi IP, Cổng: %d"), nPort);
+		else strMsg.Format(_T("Đã mở Server lắng nghe trên IP: %s, Cổng: %d"), strIP, nPort);
+
+		MessageBox(strMsg, _T("Thành công"), MB_OK | MB_ICONINFORMATION);
+
+		// Ghi vào màn hình Monitor (cũng phải gọi qua pMainDlg)
+		CString strLog = _T("[SYSTEM] ") + strMsg;
+		pMainDlg->AddToMonitor(strLog);
+	}
+	else
+	{
+		MessageBox(_T("Không thể mở Server! IP/Port không hợp lệ hoặc đang bị phần mềm khác chiếm dụng."), _T("Lỗi mạng"), MB_ICONERROR);
 	}
 }

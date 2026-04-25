@@ -25,4 +25,5 @@ protected:
 public:
 	CListCtrl m_listSess;
 	afx_msg void OnBnClickedBtnKick();
+	afx_msg void OnBnClickedBtnServer();
 };

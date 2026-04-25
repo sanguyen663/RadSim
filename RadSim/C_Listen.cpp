@@ -33,45 +33,54 @@ void CC_Listen::OnReceive(int nErrorCode)
 			CRadSimDlg* pMainDlg = (CRadSimDlg*)AfxGetMainWnd();
 			if (pMainDlg != NULL)
 			{
-				// 3. Tính toán cổng mới (Ví dụ: 10000 + 1 = 10001)
-				UINT newPort = 10000 + pMainDlg->m_nSessionCounter;
+				// --- THÊM HỘP THOẠI XÁC NHẬN Ở ĐÂY ---
+				CString strPrompt;
+				strPrompt.Format(_T("Có yêu cầu kết nối từ Trung tâm IP: %s, Cổng: %d.\nBạn có muốn chấp nhận không?"), strIP, nPort);
 
-				// 4. Tạo phiên kết nối mới và lưu vào danh sách
-				C2_Session* pNewSession = new C2_Session();
-				if (pNewSession->InitSession(newPort, strIP, nPort))
+				int nResponse = MessageBox(pMainDlg->GetSafeHwnd(), strPrompt, _T("Xác nhận kết nối"), MB_YESNO | MB_ICONQUESTION);
+
+				if (nResponse == IDYES)
 				{
-					pMainDlg->m_listSessions.push_back(pNewSession);
+					// 3. Tính toán cổng mới (Ví dụ: 10000 + 1 = 10001)
+					UINT newPort = 10000 + pMainDlg->m_nSessionCounter;
 
-					// Tăng biến đếm để Trung tâm sau vào sẽ lấy cổng 10002
-					pMainDlg->m_nSessionCounter++;
-
-					// 5. Gửi thông báo chấp nhận (ACCEPT) về cho Trung tâm
-					CString strReply;
-					strReply.Format(_T("[ACCEPT:%d]"), newPort);
-
-					// Đổi từ CString sang char* để gửi qua mạng
-					char replyBuf[256];
-					strcpy_s(replyBuf, CT2A(strReply));
-					SendTo(replyBuf, strlen(replyBuf), nPort, strIP);
-
-					// --- THÊM MỚI ĐỂ HIỂN THỊ LOG LÊN RADSIM ---
-					CString strLog;
-					strLog.Format(_T("[SYSTEM] Có Trung tâm %s:%d xin kết nối. Đã cấp cổng %d"), strIP, nPort, newPort);
-					pMainDlg->AddToMonitor(strLog);
-
-					// Nếu bạn đã viết hàm UpdateSessList() trong DlgSess của RadSim thì gọi ở đây:
-					if (pMainDlg->m_dlgSess.GetSafeHwnd() != NULL)
+					// 4. Tạo phiên kết nối mới và lưu vào danh sách
+					C2_Session* pNewSession = new C2_Session();
+					if (pNewSession->InitSession(newPort, strIP, nPort))
 					{
-						pMainDlg->m_dlgSess.UpdateSessList(); 
+						// ... (phần code cấp cổng và gửi ACCEPT giữ nguyên như cũ) ...
+						pMainDlg->m_listSessions.push_back(pNewSession);
+						pMainDlg->m_nSessionCounter++;
+
+						CString strReply;
+						strReply.Format(_T("[ACCEPT:%d]"), newPort);
+						char replyBuf[256];
+						strcpy_s(replyBuf, CT2A(strReply));
+						SendTo(replyBuf, strlen(replyBuf), nPort, strIP);
+
+						CString strLog;
+						strLog.Format(_T("[SYSTEM] ĐÃ CHẤP NHẬN kết nối từ %s:%d. Cấp cổng %d"), strIP, nPort, newPort);
+						pMainDlg->AddToMonitor(strLog);
+
+						if (pMainDlg->m_dlgSess.GetSafeHwnd() != NULL)
+						{
+							pMainDlg->m_dlgSess.UpdateSessList();
+						}
+					}
+					else
+					{
+						delete pNewSession;
 					}
 				}
 				else
 				{
-					delete pNewSession; // Mở cổng thất bại thì xóa đi
+					// Nếu chọn NO (Từ chối)
+					CString strLog;
+					strLog.Format(_T("[SYSTEM] ĐÃ TỪ CHỐI kết nối từ %s:%d"), strIP, nPort);
+					pMainDlg->AddToMonitor(strLog);
 				}
 			}
 		}
 	}
-
 	CAsyncSocket::OnReceive(nErrorCode);
 }
